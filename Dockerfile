@@ -54,9 +54,9 @@ USER appuser
 
 EXPOSE 5000
 
-# Health check using python urllib to query the /health endpoint
+# Health check using python urllib to query the /health endpoint dynamically based on $PORT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"
+  CMD python -c "import urllib.request, os; port = os.environ.get('PORT', '5000'); urllib.request.urlopen(f'http://localhost:{port}/health')"
 
 # Start the application
 CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} app:app"]

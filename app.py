@@ -15,20 +15,27 @@ from io import BytesIO
 app = Flask(__name__)
 
 def get_new_memes():
-    """Scrapers the website and extracts image URLs
+    """Scrapes the website and extracts image URLs
 
     Returns:
         imgs [list]: List of image URLs
     """
     url = 'https://www.memedroid.com/memes/tag/programming'
-    response = requests.get(url)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException:
+        return []
+
     soup = BeautifulSoup(response.content, 'lxml')
-    divs = soup.find_all('div', class_='item-aux-container')
     imgs = []
-    for div in divs:
-        img = div.find('img')['src']
-        if img.startswith('http') and img.endswith('jpeg'):
-            imgs.append(img)
+    for img_tag in soup.find_all('img', class_='img-responsive'):
+        src = img_tag.get('src')
+        if src and src.startswith('http') and (src.endswith('.jpeg') or src.endswith('.jpg') or src.endswith('.png') or src.endswith('.webp')):
+            imgs.append(src)
     return imgs
 
 
@@ -63,8 +70,23 @@ def health_check():
 
 @app.route("/", methods=['GET'])
 def return_meme():
-    img_url = random.choice(get_new_memes())
-    res = requests.get(img_url, stream=True)
-    res.raw.decode_content = True
-    img = Image.open(res.raw)
-    return serve_pil_image(img)
+    memes = get_new_memes()
+    if not memes:
+        return "No memes found. Please check your network connection or try again later.", 503
+    img_url = random.choice(memes)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    try:
+        res = requests.get(img_url, headers=headers, stream=True, timeout=10)
+        res.raise_for_status()
+        res.raw.decode_content = True
+        img = Image.open(res.raw)
+        return serve_pil_image(img)
+    except Exception as e:
+        return f"Failed to load meme image: {str(e)}", 500
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
