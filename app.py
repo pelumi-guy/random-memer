@@ -57,6 +57,10 @@ def set_response_headers(response):
     response.headers['Expires'] = '0'
     return response
 
+@app.route("/health", methods=['GET'])
+def health_check():
+    return "OK", 200
+
 @app.route("/", methods=['GET'])
 def return_meme():
     img_url = random.choice(get_new_memes())
